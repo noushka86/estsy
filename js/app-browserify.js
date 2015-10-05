@@ -3,113 +3,303 @@ require("babel/polyfill")
 
 let fetch = require('./fetcher')
 var $ = require('jquery'),
-	Backbone = require('backbone')
+    Backbone = require('backbone')
 
 console.log('loaded javascript')
 
+var ItemModel = Backbone.Model.extend({
 
-var EtsyCollection=Backbone.Collection.extend({
-	
-	url: "https://openapi.etsy.com/v2/listings/active.js",
-	apiKey:"v4scom4wfeznsgrvftmz39if",
 
-	// parse:function(responseData){
-	// 	console.log(responseData);
-	// }
+    url: "https://openapi.etsy.com/v2/listings/",
+
+
+
+    // parse:function(responseData){
+
+    // 	console.log(responseData);
+    // 	return responseData
+    // }
+
+})
+
+var EtsyCollection = Backbone.Collection.extend({
+
+    url: "https://openapi.etsy.com/v2/listings/active.js",
+    apiKey: "v4scom4wfeznsgrvftmz39if",
+
+
+    // parse:function(responseData){
+    // 	console.log(responseData);
+    // }
 
 
 })
 
-var HomeView=Backbone.View.extend({
-	
+var HomeView = Backbone.View.extend({
+
+    el: "#container",
+
+    events: {
+        "click .image": "getListingId",
+        "click .title": "getListingId",
+        "keypress input": "getSearchResults"
+
+    },
+
+    getSearchResults:function(event){
+    	if(event.keyCode===13){
+    		var query=event.target.value;
+    		location.hash=`search/${query}`
+    	}
+    },
+
+    getListingId: function(event) {
+        var element = event.target;
+        var itemId = element.getAttribute('data-item-id');
+        location.hash = `details/${itemId}`
+    },
+
+    getImgSource: function(listing) {
+        if (!listing['Images']) { // didnt solve the problem!
+            return "https://vignette1.wikia.nocookie.net/thefakegees/images/8/86/Il_170x135.434854012_ipww.jpg"
+        } else {
+            return listing.Images[0].url_570xN
+        }
+    },
+
+    getTitle: function(listing) {
+        return listing.title
+    },
+
+    getPrice: function(listing) {
+        var symbols = {
+            USD: "$",
+            GBP: "£",
+            EUR: "€",
+            AUD: "AU$"
+        }
+        return symbols[listing.currency_code] + listing.price + " " + listing.currency_code
+    },
+
+
+    render: function() {
+
+        var activeListings = this.collection.models[0].attributes.results;
+        var htmlString=`<div id="filter"> <p>Filter by:</p>
+        <input type="checkbox" id="lastWeek" value="1"/><label for="lastWeek">Posted in the last week</label>
+        <input type="checkbox" id="onSale" value="2"/><label for="onSale">On sale</label>
+        <input type="checkbox" id="Tpictures" value="3"/><label for="Tpictures">Has 3 pictures</label>
+        </div>`
+        htmlString += "<h3>Shop our latest handpicked collections</h3>";
+        var self = this
+        activeListings.forEach(function(listing) {
+            htmlString += `<div class="listing">\
+				<div data-item-id="${listing.Shop.shop_name}/${listing.listing_id}" class="image" style="background-image:url(${self.getImgSource(listing)})"></div>\
+				<p data-item-id="${listing.Shop.shop_name}/${listing.listing_id}" class="title">${self.getTitle(listing)}</p>\
+				<p>${self.getPrice(listing)}</p>
+				</div>`
+                
+        })
+
+        $('#listings-container').html(htmlString);
+
+
+
+    }
+
+    
+})
+
+var DetailsView = Backbone.View.extend({
+
 	el:"#container",
+
 	events: {
-        "click .image": "showItem",
-        "click .title": "showItem"
+		"click #leftA": "getPrevItem",
+		"click #left-arrow": "getPrevItem",
+        "click #rightA": "getNextItem",
+       	"click #right-arrow": "getNextItem",
+	},
 
+	getNextItem:function(){
+		console.log("next")
+
+	},
+
+	getPrevItem:function(){
+		console.log("prev")
+
+	},
+
+    getTitle: function(item) {
+        return item.title;
     },
 
-    showItem:function(event){
-    	console.log(event);
+    getImage: function(item) {
+        return item.MainImage.url_570xN;
     },
 
-	getImgSource:function(listing){
-		if(listing.Images[0].length===0){
-			return "https://vignette1.wikia.nocookie.net/thefakegees/images/8/86/Il_170x135.434854012_ipww.jpg"
-		}
-		else {return	listing.Images[0].url_570xN}
-	},
+    getDescription: function(item) {
+        return item.description;
+    },
 
-	getTitle:function(listing){
-		return listing.title
-	},
+    getShopName:function(item){
+    	return item.Shop.shop_name
+    },
 
-	getPrice:function(listing){
-		var symbols={USD:"$",GBP:"£"}
-		return symbols[listing.currency_code]+listing.price+" "+listing.currency_code
-	},
+    getShopIcon:function(item){
+    	return item.Shop.icon_url_fullxfull
+    },
 
-	render:function(){
+    buildSingleItem:function(item){
+    	return `<div id="shop-icon">
+        	<div style="background-image:url(${this.getShopIcon(item)})"></div>
+        	<h4>${this.getShopName(item)}</h4>
+        </div>
 
-		console.log(this.collection.models[0].attributes.results)
-	var activeListings= this.collection.models[0].attributes.results;
-	var htmlString="<h3>Shop our latest handpicked collections</h3>";
-	var self=this
-	activeListings.forEach(function(listing){
-		htmlString+=`<div class="listing">\
-				<div class="image" style="background-image:url(${self.getImgSource(listing)})"></div>\
+     	<div id="single-item">
+			<h4>${this.getTitle(item)}</h4>
+			<div id="item-img" style="background-image:url(${this.getImage(item)})">
+			<div class="arrow" id="leftA"><div id="left-arrow"><</div></div>
+			<div class="arrow" id="rightA"><div id="right-arrow">></div></div>
+			</div>
+			<p>${this.getDescription(item)}</p>
+		</div>`
+    },
+     getImgSource: function(listing) {
+        if (!listing['MainImage']) { // didnt solve the problem!
+            return "https://vignette1.wikia.nocookie.net/thefakegees/images/8/86/Il_170x135.434854012_ipww.jpg"
+        } else {
+            return listing.MainImage.url_570xN
+        }
+    },
+    getPrice: function(listing) {
+        var symbols = {
+            USD: "$",
+            GBP: "£",
+            EUR: "€",
+            AUD: "AU$"
+        }
+        return symbols[listing.currency_code] + listing.price + " " + listing.currency_code
+    },
+
+    render: function() {
+        console.log(this.model.attributes.results[0]);
+        var item = this.model.attributes.results[0];
+        console.log('sss')
+        console.log(this.collection.models[0].attributes.results)
+		var self = this
+        var shopListings=this.collection.models[0].attributes.results
+
+        var htmlString = this.buildSingleItem(item)
+	
+		
+		htmlString+=`<div id="shop-items">
+			<div id="shop-icon2">
+        	<div style="background-image:url(${this.getShopIcon(item)})"></div>
+        	<h4>${this.getShopName(item)}</h4>
+        </div>
+		`
+		
+		shopListings.forEach(function(listing){
+		
+			htmlString += `<div class="listing2">\
+				<div class="image2" style="background-image:url(${self.getImgSource(listing)})"></div>\
 				<p class="title">${self.getTitle(listing)}</p>\
 				<p>${self.getPrice(listing)}</p>
-
 				</div>`
-	})
+		})
 
-	$('#listings-container').html(htmlString);
-	}
+		htmlString+=`</div>`
 
-	// initialize: function(){
-	// 	this.listenTo(this.collection, 'sync', this.render)
-	// }
-})
 
-var DetailsView=Backbone.View.extend({
 
-	
+        $('#listings-container').html(htmlString);
+
+    }
+
 })
 
 
-var Router=Backbone.Router.extend({
+var Router = Backbone.Router.extend({
 
-routes:{
-	'home':'showHome'
+    routes: {
+        'home': 'showHome',
+        'details/:shop/:itemId': 'showDetails',
+        'search/:query':'filteredSearch'
+    },
+
+    filteredSearch:function(query){
+ 
+    		// if($('#lastWeek').is(':checked')) {this.filter.push(0)}
+    		// if($('#onSale').is(':checked')) {this.filter.push(1)}
+    		// if($('#Tpictures').is(':checked')) {this.filter.push(2)}
+
+
+    	 var renderView = this.home.render.bind(this.home)
+        this.etsy.fetch({
+            dataType: 'jsonp',
+            data: {
+            	keywords:query,
+                "api_key": this.etsy.apiKey,
+                includes: 'Images,Shop'
+            },
+            processData: true
+        }).success(renderView)
+
+    },	
+
+    showDetails: function(shop,itemId) {
+    
+        var self = this;
+        this.details.model = new ItemModel();
+        this.details.collection=new EtsyCollection();
+
+        this.details.model.fetch({
+            url: `https://openapi.etsy.com/v2/listings/${itemId}.js`,
+            dataType: 'jsonp',
+            data: {
+                api_key: "v4scom4wfeznsgrvftmz39if",
+                includes: 'MainImage,Shop'
+
+            },
+            processData: true
+        }).success(function() {
+            self.details.collection.fetch({
+        	url:`https://openapi.etsy.com/v2/shops/${shop}/listings/active.js`,
+        	dataType:'jsonp',
+        	data: {
+                "api_key": "v4scom4wfeznsgrvftmz39if",
+                includes: 'MainImage,Shop'
+            },
+            processData: true
+
+        }).success(self.details.render.bind(self.details))
+        
+})
 },
-
-	showHome:function(){
-		console.log("splitText(offset)")
-		var self=this
-		var renderView = this.home.render.bind(this.home)
-
-		this.etsy.fetch({
-			dataType: 'jsonp',
-			data: {
-				"api_key": this.etsy.apiKey,
-				includes: 'Images'	
-			},
-			processData: true
-		}).done(renderView)
-	
-	},
+    showHome: function() {
+        var renderView = this.home.render.bind(this.home)
+        this.etsy.fetch({
+            dataType: 'jsonp',
+            data: {
+                "api_key": this.etsy.apiKey,
+                includes: 'Images,Shop'
+            },
+            processData: true
+        }).success(renderView)
+    },
 
 
-
-initialize:function(){
-	this.etsy=new EtsyCollection()
-	this.home=new HomeView({collection:this.etsy})
-	// this.details=new DetailsView({model:this.etsy})
-	Backbone.history.start();
-}
+    initialize: function() {
+        this.etsy = new EtsyCollection()
+        this.home = new HomeView({
+            collection: this.etsy
+        })
+        this.details = new DetailsView()
+        Backbone.history.start();
+    }
 
 })
 
-var router=new Router();
-
+var router = new Router();
