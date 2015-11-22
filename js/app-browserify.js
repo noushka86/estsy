@@ -7,6 +7,8 @@ var $ = require('jquery'),
 
 console.log('loaded javascript')
 
+var index;
+
 var ItemModel = Backbone.Model.extend({
 
 
@@ -42,9 +44,13 @@ var HomeView = Backbone.View.extend({
     events: {
         "click .image": "getListingId",
         "click .title": "getListingId",
-        "keypress input": "getSearchResults"
+        "keypress input": "getSearchResults",
+        // "click #lastWeek":"showLastWeek"
 
     },
+    // showLastWeek:function(event){
+    //     console.log(event.target.checked)
+    // },
 
     getSearchResults:function(event){
     	if(event.keyCode===13){
@@ -82,14 +88,15 @@ var HomeView = Backbone.View.extend({
     },
 
 
+   
     render: function() {
 
         var activeListings = this.collection.models[0].attributes.results;
-        var htmlString=`<div id="filter"> <p>Filter by:</p>
-        <input type="checkbox" id="lastWeek" value="1"/><label for="lastWeek">Posted in the last week</label>
-        <input type="checkbox" id="onSale" value="2"/><label for="onSale">On sale</label>
-        <input type="checkbox" id="Tpictures" value="3"/><label for="Tpictures">Has 3 pictures</label>
-        </div>`
+        // var htmlString=`<div id="filter"> <p>Filter by:</p>
+        // <input type="checkbox" id="lastWeek" value="1"/><label for="lastWeek">Posted in the last week</label>
+        // <input type="checkbox" id="Tpictures" value="3"/><label for="Tpictures">Has 3 pictures</label>
+        // </div>`
+        var htmlString="";
         htmlString += "<h3>Shop our latest handpicked collections</h3>";
         var self = this
         activeListings.forEach(function(listing) {
@@ -119,17 +126,47 @@ var DetailsView = Backbone.View.extend({
 		"click #left-arrow": "getPrevItem",
         "click #rightA": "getNextItem",
        	"click #right-arrow": "getNextItem",
+        "click .image2":"getListingId"
 	},
 
-	getNextItem:function(){
+     getListingId: function(event) {
+        var element = event.target;
+        var itemId = element.getAttribute('data-item-id');
+        location.hash = `details/${itemId}`
+    },
+
+    getListing:function(event){
+        console.console.log(event);
+    },
+
+	getNextItem:function(event){
+        event.stopPropagation();
 		console.log("next")
+        var item = this.model.attributes.results[0];
+        var shopListings=this.collection.models[0].attributes.results
+        var nextItemIndex=this.findNextListingIndex(item.listing_id,shopListings);
+        console.log(nextItemIndex)
+        console.log(shopListings[nextItemIndex].Shop.shop_name)
+        console.log(shopListings[nextItemIndex].listing_id)
+        location.hash=`details/${shopListings[nextItemIndex].Shop.shop_name}/${shopListings[nextItemIndex].listing_id}`;
+        
 
 	},
 
-	getPrevItem:function(){
-		console.log("prev")
+	getPrevItem:function(event){
+        event.stopPropagation();
+        var item = this.model.attributes.results[0];
+        var shopListings=this.collection.models[0].attributes.results
+        var prevItemIndex=this.findPrevListingIndex(item.listing_id,shopListings);
+        console.log(prevItemIndex)
+        console.log(shopListings[prevItemIndex].Shop.shop_name)
+        console.log(shopListings[prevItemIndex].listing_id)
+        location.hash=`details/${shopListings[prevItemIndex].Shop.shop_name}/${shopListings[prevItemIndex].listing_id}`;
+        
 
 	},
+
+
 
     getTitle: function(item) {
         return item.title;
@@ -183,6 +220,26 @@ var DetailsView = Backbone.View.extend({
         return symbols[listing.currency_code] + listing.price + " " + listing.currency_code
     },
 
+    findNextListingIndex:function(listingId,itemsArr,){
+        for(var i=0;i<itemsArr.length; i++){
+            if(itemsArr[i].listing_id===listingId){
+                console.log((i+1)%(itemsArr.length))
+                return (i+1)%(itemsArr.length);
+            }
+        }
+    },
+
+    findPrevListingIndex:function(listingId,itemsArr,){
+        for(var i=0;i<itemsArr.length; i++){
+            if(itemsArr[i].listing_id===listingId){
+                console.log((i+1)%(itemsArr.length))
+                return (i-1)%(itemsArr.length);
+            }
+        }
+    },
+
+
+
     render: function() {
         console.log(this.model.attributes.results[0]);
         var item = this.model.attributes.results[0];
@@ -193,18 +250,20 @@ var DetailsView = Backbone.View.extend({
 
         var htmlString = this.buildSingleItem(item)
 	
-		
+
 		htmlString+=`<div id="shop-items">
 			<div id="shop-icon2">
         	<div style="background-image:url(${this.getShopIcon(item)})"></div>
         	<h4>${this.getShopName(item)}</h4>
         </div>
 		`
+
+
 		
 		shopListings.forEach(function(listing){
 		
 			htmlString += `<div class="listing2">\
-				<div class="image2" style="background-image:url(${self.getImgSource(listing)})"></div>\
+				<div data-item-id="${listing.Shop.shop_name}/${listing.listing_id}" class="image2" style="background-image:url(${self.getImgSource(listing)})"></div>\
 				<p class="title">${self.getTitle(listing)}</p>\
 				<p>${self.getPrice(listing)}</p>
 				</div>`
@@ -216,6 +275,7 @@ var DetailsView = Backbone.View.extend({
 
         $('#listings-container').html(htmlString);
 
+
     }
 
 })
@@ -226,7 +286,12 @@ var Router = Backbone.Router.extend({
     routes: {
         'home': 'showHome',
         'details/:shop/:itemId': 'showDetails',
-        'search/:query':'filteredSearch'
+        'search/:query':'filteredSearch',
+        '*default':'showDefault'
+    },
+
+    showDefault:function(){
+        location.hash="home"
     },
 
     filteredSearch:function(query){
@@ -303,3 +368,4 @@ var Router = Backbone.Router.extend({
 })
 
 var router = new Router();
+
